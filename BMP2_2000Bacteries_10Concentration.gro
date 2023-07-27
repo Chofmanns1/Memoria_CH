@@ -1,0 +1,72 @@
+include gro
+
+set ("dt", 0.1);
+set ("population_max", 20000); //20 000
+
+//CellSignals settings
+set ("signals",1.0);
+set ("signals_draw", 1.0);
+grid("continuous", "gro_original", 10, 10, 8);
+bmp2 := s_signal([kdiff := 0.8, kdeg := 0.005]);
+t := 0;
+t1 := 0;
+n := 0;
+
+route1 := "C:\Users\crist\OneDrive\Escritorio\gro_tesis\1000-to-20000_Bacteries_10_Concentration\";
+route2 := "C:\Users\crist\OneDrive\Escritorio\gro_tesis\1000-to-20000_Bacteries_10_Concentration\Fotos2_10_Concentration\";
+fp := fopen (route1 <> "BMP2_10_Concentration.csv", "w" );
+
+genes([		name := "OperonBMP2",
+			proteins := {"BMP_2"},
+			promoter := [function := "TRUE",
+			noise := [toOff := 0.001, toOn := 0.001, noise_time:= 100.0]],
+			prot_act_times := [times := {10.0}, variabilities := {2.0}],
+			prot_deg_times := [times := {5.0}, variabilities := {1.0}]]);
+
+genes([		name := "OperonmRFP1",
+			proteins := {"mRFP1"},
+			promoter := [function := "AND",
+			transcription_factors := {"BMP_2","bmp"},
+			noise := [toOff := 0.001, toOn := 0.001, noise_time:= 100.0]],
+			prot_act_times := [times := {5.0}, variabilities := {1.0}],
+			prot_deg_times := [times := {2.5}, variabilities := {0.5}]]);
+			
+plasmids_genes ([ pbmp := {"OperonBMP2","OperonmRFP1"}]);
+
+
+//Actions
+action({"mRFP1"},"d_paint",{"0","1","0","0"});
+action({"-mRFP1"},"d_paint",{"0","-1","0","0"});
+action({},"s_get_QS",{tostring(bmp2),">","0.5","bmp"});
+action({},"set_growth_rate",{"0.017"}); //0.017
+
+//Programs
+program p() :=
+{
+	skip();
+	/*selected:
+	{
+		dump_single(fp);
+	}*/
+};
+
+program main() :=
+{
+    t = 0:
+    {
+        fprint(fp, "Time, bmp2, mRFP1, Total\n");
+    }
+    t1 > 2 : 
+	{ 
+    	snapshot(route2 <> "Foto" <> tostring(n) <> ".png" );
+    	n := n + 1;
+    	t1 := 0;
+  	s_set_signal(bmp2, 20000000, 0.0, 0.0);} // Cambio mas notorio
+    true:
+	{
+        dump_multiple(fp,{"bmp"},{"mRFP1"},{});
+        t := t + dt;
+		t1 := t1 + dt;
+    }
+    c_ecolis(1000, 0, 0, 1, {"pbmp"}, program p()); // 1000
+};
